@@ -24,9 +24,21 @@ func ProvideMaterialsHandler(materialService materials.MaterialService) Material
 func (h *MaterialsHandler) Router(r chi.Router) {
 	r.Route("/materials", func(r chi.Router) {
 		r.Post("/", h.CreateMaterial)
+		r.Get("/", h.GetAllMaterial)
 	})
 }
 
+// CreateMaterial creates a new Material.
+// @Summary Create a new Material.
+// @Description This endpoint creates a new Material.
+// @Tags materials/material
+// @Param foo body materials.PayloadMaterial true "The Material to be created."
+// @Produce json
+// @Success 201 {object} response.Base{data=materials.MaterialResponseFormat}
+// @Failure 400 {object} response.Base
+// @Failure 409 {object} response.Base
+// @Failure 500 {object} response.Base
+// @Router /v1/materials [post]
 func (h *MaterialsHandler) CreateMaterial(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var requestFormat materials.PayloadMaterial
@@ -45,6 +57,15 @@ func (h *MaterialsHandler) CreateMaterial(w http.ResponseWriter, r *http.Request
 		response.WithError(w, err)
 		return
 	}
-	response.WithJSON(w, http.StatusCreated, mat)
 
+	response.WithJSON(w, http.StatusCreated, mat)
+}
+
+func (h *MaterialsHandler) GetAllMaterial(w http.ResponseWriter, r *http.Request) {
+	mats, err := h.MaterialService.GetAll()
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+	response.WithJSON(w, http.StatusOK, mats)
 }

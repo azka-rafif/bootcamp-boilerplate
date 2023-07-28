@@ -77,7 +77,7 @@ func (a *Authentication) Password(next http.Handler) http.Handler {
 		}
 
 		if !parseToken.VerifyExpireIn() {
-			response.WithMessage(w, http.StatusUnauthorized, err.Error())
+			response.WithMessage(w, http.StatusUnauthorized, "token expired")
 			return
 		}
 

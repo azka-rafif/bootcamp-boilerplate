@@ -40,14 +40,14 @@ const (
 // HTTP is the HTTP server.
 type HTTP struct {
 	Config *configs.Config
-	DB     *infras.MySQLConn
+	DB     *infras.MariaDBConn
 	Router router.Router
 	State  ServerState
 	mux    *chi.Mux
 }
 
 // ProvideHTTP is the provider for HTTP.
-func ProvideHTTP(db *infras.MySQLConn, config *configs.Config, router router.Router) *HTTP {
+func ProvideHTTP(db *infras.MariaDBConn, config *configs.Config, router router.Router) *HTTP {
 	return &HTTP{
 		DB:     db,
 		Config: config,

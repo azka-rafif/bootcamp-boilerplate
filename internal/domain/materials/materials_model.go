@@ -1,6 +1,7 @@
 package materials
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/evermos/boilerplate-go/shared"
@@ -8,11 +9,11 @@ import (
 )
 
 type Material struct {
-	Id          uuid.UUID `db:"id" validate:"required"`
+	Id          uuid.UUID `db:"id"`
 	Title       string    `db:"title" validate:"required"`
 	Description string    `db:"description" validate:"required"`
-	CreatedAt   time.Time `db:"created_at" validate:"required"`
-	UpdatedAt   time.Time `db:"updated_at" validate:"required"`
+	CreatedAt   time.Time `db:"created_at"`
+	UpdatedAt   time.Time `db:"updated_at"`
 }
 
 type PayloadMaterial struct {
@@ -28,20 +29,20 @@ type MaterialResponseFormat struct {
 	UpdatedAt   time.Time `json:"updatedAt"`
 }
 
-func (m Material) NewFromPayload(payload PayloadMaterial) (newMat Material, err error) {
+func (m Material) NewFromPayload(payload PayloadMaterial) (Material, error) {
 	matID, _ := uuid.NewV4()
-	newMat = Material{
+	newMat := Material{
 		Id:          matID,
 		Title:       payload.Title,
 		Description: payload.Description,
 		CreatedAt:   time.Now().UTC(),
 		UpdatedAt:   time.Now().UTC(),
 	}
-	err = m.Validate()
-	return
+	err := newMat.Validate()
+	return newMat, err
 }
 
-func (m Material) ToResponseFormat() MaterialResponseFormat {
+func (m *Material) ToResponseFormat() MaterialResponseFormat {
 	resp := MaterialResponseFormat{
 		Id:          m.Id,
 		Title:       m.Title,
@@ -55,4 +56,8 @@ func (m Material) ToResponseFormat() MaterialResponseFormat {
 func (m *Material) Validate() error {
 	validator := shared.GetValidator()
 	return validator.Struct(m)
+}
+
+func (m Material) MarshalJSON() ([]byte, error) {
+	return json.Marshal(m.ToResponseFormat())
 }

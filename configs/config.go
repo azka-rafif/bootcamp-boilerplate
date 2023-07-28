@@ -53,6 +53,24 @@ type Config struct {
 				Timezone string `mapstructure:"TIMEZONE"`
 			}
 		}
+		MariaDB struct {
+			Read struct {
+				Host     string `mapstructure:"HOST"`
+				Port     string `mapstructure:"PORT"`
+				Username string `mapstructure:"USER"`
+				Password string `mapstructure:"PASSWORD"`
+				Name     string `mapstructure:"NAME"`
+				Timezone string `mapstructure:"TIMEZONE"`
+			}
+			Write struct {
+				Host     string `mapstructure:"HOST"`
+				Port     string `mapstructure:"PORT"`
+				Username string `mapstructure:"USER"`
+				Password string `mapstructure:"PASSWORD"`
+				Name     string `mapstructure:"NAME"`
+				Timezone string `mapstructure:"TIMEZONE"`
+			}
+		}
 	}
 
 	Event struct {
