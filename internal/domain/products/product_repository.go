@@ -48,11 +48,11 @@ func (r *ProductRepositoryMariaDB) CreateWithVariant(payload ProductAndVariant) 
 			c <- err
 			return
 		}
-		if err := r.txCreateVariant(db, payload); err != nil {
+		if err := r.txCreateVariant(db, payload.Variant); err != nil {
 			c <- err
 			return
 		}
-		if err := r.txCreateImages(db, payload); err != nil {
+		if err := r.txCreateImages(db, payload.Variant); err != nil {
 			c <- err
 			return
 		}
@@ -86,7 +86,7 @@ func (r *ProductRepositoryMariaDB) txCreateWithVariant(tx *sqlx.Tx, payload Prod
 	return
 }
 
-func (r *ProductRepositoryMariaDB) txCreateVariant(tx *sqlx.Tx, payload ProductAndVariant) (err error) {
+func (r *ProductRepositoryMariaDB) txCreateVariant(tx *sqlx.Tx, payload variants.Variant) (err error) {
 	varQuery := `INSERT INTO variant (variant_id,product_id,variant_name,price,quantity,updated_at, created_by, created_at, updated_by)
 	 VALUES (:variant_id,:product_id,:variant_name,:price,:quantity,:updated_at, :created_by, :created_at, :updated_by)
 	`
@@ -97,7 +97,7 @@ func (r *ProductRepositoryMariaDB) txCreateVariant(tx *sqlx.Tx, payload ProductA
 		return
 	}
 	defer varStmt.Close()
-	_, err = varStmt.Exec(payload.Variant)
+	_, err = varStmt.Exec(payload)
 	if err != nil {
 		tx.Rollback()
 		logger.ErrorWithStack(err)
@@ -105,7 +105,7 @@ func (r *ProductRepositoryMariaDB) txCreateVariant(tx *sqlx.Tx, payload ProductA
 	return
 }
 
-func (r *ProductRepositoryMariaDB) txCreateImages(tx *sqlx.Tx, payload ProductAndVariant) (err error) {
+func (r *ProductRepositoryMariaDB) txCreateImages(tx *sqlx.Tx, payload variants.Variant) (err error) {
 	imgQuery := `INSERT INTO image (image_id,variant_id,image_url,updated_at, created_by, created_at, updated_by)
 	VALUES (:image_id,:variant_id,:image_url,:updated_at, :created_by, :created_at, :updated_by)`
 	imgStmt, err := tx.PrepareNamed(imgQuery)
@@ -116,7 +116,7 @@ func (r *ProductRepositoryMariaDB) txCreateImages(tx *sqlx.Tx, payload ProductAn
 	}
 	defer imgStmt.Close()
 
-	for _, imgs := range payload.Variant.Images {
+	for _, imgs := range payload.Images {
 		_, err = imgStmt.Exec(imgs)
 		if err != nil {
 			tx.Rollback()
@@ -270,7 +270,19 @@ func (r *ProductRepositoryMariaDB) txDelete(tx *sqlx.Tx, prodId uuid.UUID) (err 
 }
 
 func (r *ProductRepositoryMariaDB) AddVariant(variant variants.Variant) (err error) {
-	return
+
+	return r.DB.WithTransaction(func(db *sqlx.Tx, c chan error) {
+
+		if err := r.txCreateVariant(db, variant); err != nil {
+			c <- err
+			return
+		}
+		if err := r.txCreateImages(db, variant); err != nil {
+			c <- err
+			return
+		}
+		c <- nil
+	})
 }
 
 func (r *ProductRepositoryMariaDB) txAddVariant(tx *sqlx.Tx, variant variants.Variant) (err error) {
