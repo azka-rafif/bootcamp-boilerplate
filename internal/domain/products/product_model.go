@@ -160,3 +160,14 @@ func (p *Product) Validate() error {
 func (p Product) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.ToResponseFormat())
 }
+
+func (p *Product) Update(req PayloadProduct) (err error) {
+	p.UpdatedAt = time.Now().UTC()
+	p.UpdatedBy = req.UserID
+	p.ProductName = req.ProductName
+	p.BrandID = req.BrandID
+
+	err = p.Validate()
+
+	return
+}

@@ -10,6 +10,7 @@ type ProductService interface {
 	CreateWithVariant(newMat PayloadProductAndVariant) (ProductAndVariant, error)
 	GetAllProducts(pg pagination.Pagination) (prods []Product, err error)
 	GetProductByID(prodId uuid.UUID) (prod ProductWithVariants, err error)
+	Update(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error)
 }
 
 type ProductServiceImpl struct {
@@ -52,5 +53,18 @@ func (s *ProductServiceImpl) GetProductByID(prodId uuid.UUID) (prod ProductWithV
 	if err != nil {
 		return
 	}
+	return
+}
+
+func (s *ProductServiceImpl) Update(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error) {
+	prod, err = s.ProductRepository.GetProductByID(prodId)
+	if err != nil {
+		return
+	}
+	err = prod.Update(payload)
+	if err != nil {
+		return
+	}
+	err = s.ProductRepository.Update(prod)
 	return
 }

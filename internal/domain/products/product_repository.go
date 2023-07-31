@@ -15,6 +15,7 @@ type ProductRepository interface {
 	GetAllProducts(field, sort string, limit, offset int) (prods []Product, err error)
 	GetProductByID(prodId uuid.UUID) (prod Product, err error)
 	GetProductWithVariants(proId uuid.UUID) (prod ProductWithVariants, err error)
+	Update(prod Product) (err error)
 }
 
 type ProductRepositoryMariaDB struct {
@@ -94,7 +95,7 @@ func (r *ProductRepositoryMariaDB) GetAllProducts(field, sort string, limit, off
 }
 
 func (r *ProductRepositoryMariaDB) GetProductByID(prodId uuid.UUID) (prod Product, err error) {
-	err = r.DB.Read.Get(&prod, "SELECT * FROM product WHERE product_id = %d", prodId)
+	err = r.DB.Read.Get(&prod, "SELECT * FROM product WHERE product_id = ?", prodId)
 	if err != nil {
 		err = failure.InternalError(err)
 		logger.ErrorWithStack(err)
@@ -132,5 +133,45 @@ func (r *ProductRepositoryMariaDB) ExistsByID(prodId uuid.UUID) (exists bool, er
 }
 
 func (r *ProductRepositoryMariaDB) Update(prod Product) (err error) {
+	exists, err := r.ExistsByID(prod.ProductID)
+	if err != nil {
+		logger.ErrorWithStack(err)
+		return
+	}
+
+	if !exists {
+		err = failure.NotFound("foo")
+		logger.ErrorWithStack(err)
+		return
+	}
+	return r.DB.WithTransaction(func(tx *sqlx.Tx, c chan error) {
+		if err := r.txUpdate(tx, prod); err != nil {
+			c <- err
+			return
+		}
+		c <- nil
+	})
+}
+
+func (r *ProductRepositoryMariaDB) txUpdate(tx *sqlx.Tx, prod Product) (err error) {
+	query := `UPDATE product
+	SET
+		product_name = :product_name,
+		brand_id = :brand_id,
+		updated_at = :updated_at,
+		updated_by = :updated_by
+	WHERE product_id = :product_id`
+	stmt, err := tx.PrepareNamed(query)
+	if err != nil {
+		logger.ErrorWithStack(err)
+		return
+	}
+	defer stmt.Close()
+
+	_, err = stmt.Exec(prod)
+	if err != nil {
+		logger.ErrorWithStack(err)
+	}
+
 	return
 }
