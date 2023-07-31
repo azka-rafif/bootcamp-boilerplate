@@ -6,6 +6,7 @@ import (
 
 	"github.com/evermos/boilerplate-go/internal/domain/variants"
 	"github.com/evermos/boilerplate-go/shared"
+	"github.com/evermos/boilerplate-go/shared/failure"
 	"github.com/evermos/boilerplate-go/shared/nuuid"
 	"github.com/gofrs/uuid"
 	"github.com/guregu/null"
@@ -148,6 +149,8 @@ func (p *Product) ToResponseFormat() ProductResponseFormat {
 		CreatedBy:   p.UserID,
 		UpdatedAt:   time.Now().UTC(),
 		UpdatedBy:   p.UserID,
+		DeletedAt:   p.DeletedAt,
+		DeletedBy:   p.DeletedBy,
 	}
 	return resp
 }
@@ -159,6 +162,20 @@ func (p *Product) Validate() error {
 
 func (p Product) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.ToResponseFormat())
+}
+
+func (p *Product) IsDeleted() (deleted bool) {
+	return p.DeletedAt.Valid && p.DeletedBy.Valid
+}
+
+func (p *Product) SoftDelete(userID uuid.UUID) (err error) {
+	if p.IsDeleted() {
+		return failure.Conflict("softDelete", "Product", "already marked as deleted")
+	}
+
+	p.DeletedAt = null.TimeFrom(time.Now().UTC())
+	p.DeletedBy = nuuid.From(userID)
+	return
 }
 
 func (p *Product) Update(req PayloadProduct) (err error) {

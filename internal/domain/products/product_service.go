@@ -11,6 +11,8 @@ type ProductService interface {
 	GetAllProducts(pg pagination.Pagination) (prods []Product, err error)
 	GetProductByID(prodId uuid.UUID) (prod ProductWithVariants, err error)
 	Update(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error)
+	SoftDelete(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error)
+	HardDelete(prodId uuid.UUID, payload PayloadProduct) (err error)
 }
 
 type ProductServiceImpl struct {
@@ -66,5 +68,28 @@ func (s *ProductServiceImpl) Update(prodId uuid.UUID, payload PayloadProduct) (p
 		return
 	}
 	err = s.ProductRepository.Update(prod)
+	return
+}
+
+func (s *ProductServiceImpl) SoftDelete(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error) {
+	prod, err = s.ProductRepository.GetProductByID(prodId)
+	if err != nil {
+		return
+	}
+
+	err = prod.SoftDelete(payload.UserID)
+	if err != nil {
+		return
+	}
+	err = s.ProductRepository.Update(prod)
+	return
+}
+
+func (s *ProductServiceImpl) HardDelete(prodId uuid.UUID, payload PayloadProduct) (err error) {
+	_, err = s.ProductRepository.GetProductByID(prodId)
+	if err != nil {
+		return
+	}
+	err = s.ProductRepository.HardDelete(prodId)
 	return
 }

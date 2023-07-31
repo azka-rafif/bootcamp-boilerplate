@@ -29,7 +29,9 @@ func (h *ProductHandler) Router(r chi.Router) {
 		r.Post("/", h.CreateProduct)
 		r.Get("/{id}", h.GetProductByID)
 		r.Put("/{id}", h.UpdateProduct)
-		r.Delete("/{id}", h.DeleteProduct)
+		r.Delete("/soft/{id}", h.SoftDelete)
+		r.Delete("/hard/{id}", h.HardDelete)
+
 	})
 }
 
@@ -130,6 +132,58 @@ func (h *ProductHandler) UpdateProduct(w http.ResponseWriter, r *http.Request) {
 	response.WithJSON(w, http.StatusOK, prod)
 }
 
-func (h *ProductHandler) DeleteProduct(w http.ResponseWriter, r *http.Request) {
+func (h *ProductHandler) SoftDelete(w http.ResponseWriter, r *http.Request) {
+	idString := chi.URLParam(r, "id")
+	id, err := uuid.FromString(idString)
 
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var requestFormat products.PayloadProduct
+	err = decoder.Decode(&requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	err = shared.GetValidator().Struct(requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	prod, err := h.ProductService.SoftDelete(id, requestFormat)
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+	response.WithJSON(w, http.StatusOK, prod)
+}
+
+func (h *ProductHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
+	idString := chi.URLParam(r, "id")
+	id, err := uuid.FromString(idString)
+
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var requestFormat products.PayloadProduct
+	err = decoder.Decode(&requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	err = shared.GetValidator().Struct(requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	err = h.ProductService.HardDelete(id, requestFormat)
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+	response.WithJSON(w, http.StatusNoContent, nil)
 }

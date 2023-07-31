@@ -16,6 +16,7 @@ type ProductRepository interface {
 	GetProductByID(prodId uuid.UUID) (prod Product, err error)
 	GetProductWithVariants(proId uuid.UUID) (prod ProductWithVariants, err error)
 	Update(prod Product) (err error)
+	HardDelete(prodId uuid.UUID) (err error)
 }
 
 type ProductRepositoryMariaDB struct {
@@ -159,7 +160,9 @@ func (r *ProductRepositoryMariaDB) txUpdate(tx *sqlx.Tx, prod Product) (err erro
 		product_name = :product_name,
 		brand_id = :brand_id,
 		updated_at = :updated_at,
-		updated_by = :updated_by
+		updated_by = :updated_by,
+		deleted_at = :deleted_at,
+		deleted_by = :deleted_by
 	WHERE product_id = :product_id`
 	stmt, err := tx.PrepareNamed(query)
 	if err != nil {
@@ -173,5 +176,20 @@ func (r *ProductRepositoryMariaDB) txUpdate(tx *sqlx.Tx, prod Product) (err erro
 		logger.ErrorWithStack(err)
 	}
 
+	return
+}
+
+func (r *ProductRepositoryMariaDB) HardDelete(prodId uuid.UUID) (err error) {
+	return r.DB.WithTransaction(func(tx *sqlx.Tx, e chan error) {
+		if err := r.txDelete(tx, prodId); err != nil {
+			e <- err
+			return
+		}
+		e <- nil
+	})
+}
+
+func (r *ProductRepositoryMariaDB) txDelete(tx *sqlx.Tx, prodId uuid.UUID) (err error) {
+	_, err = tx.Exec("DELETE FROM product WHERE product_id = ?", prodId.String())
 	return
 }
