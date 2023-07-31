@@ -99,8 +99,22 @@ CREATE TRIGGER variant_update
 AFTER UPDATE ON variant
 FOR EACH ROW
 	UPDATE product
-    SET updated_at = CURRENT_TIMESTAMP
+    SET
+     updated_at = CURRENT_TIMESTAMP,
     WHERE product.product_id = NEW.product_id;
+DELIMITER //
+
+CREATE TRIGGER product_delete
+AFTER UPDATE ON product
+FOR EACH ROW
+	UPDATE variant
+    SET
+     updated_at = NEW.updated_at,
+     updated_by = NEW.updated_by,
+     deleted_at = NEW.deleted_at,
+     deleted_by = NEW.deleted_by
+    WHERE variant.product_id = NEW.product_id;
+
 DELIMITER //
 CREATE TRIGGER image_update
 AFTER UPDATE ON `image`
@@ -116,16 +130,6 @@ FOR EACH ROW
     SET updated_at = CURRENT_TIMESTAMP
     WHERE user_id = NEW.user_id;
 DELIMITER //
-CREATE TRIGGER product_update
-AFTER UPDATE ON `product`
-FOR EACH ROW
-  UPDATE `product`
-    SET updated_at = CURRENT_TIMESTAMP
-    WHERE product_id = NEW.product_id;
-DELIMITER
-
-DELIMITER //
-
 CREATE TRIGGER tr_insert_variant_location
 AFTER INSERT ON variant
 FOR EACH ROW
