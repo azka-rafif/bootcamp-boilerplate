@@ -164,15 +164,37 @@ func (r *ProductRepositoryMariaDB) txUpdate(tx *sqlx.Tx, prod Product) (err erro
 		deleted_at = :deleted_at,
 		deleted_by = :deleted_by
 	WHERE product_id = :product_id`
+	varQuery := `UPDATE variant 
+	SET
+		updated_at = :updated_at,
+		updated_by = :updated_by,
+		deleted_at = :deleted_at,
+		deleted_by = :deleted_by
+	WHERE product_id = :product_id`
+
 	stmt, err := tx.PrepareNamed(query)
 	if err != nil {
+		tx.Rollback()
 		logger.ErrorWithStack(err)
 		return
 	}
 	defer stmt.Close()
+	varsStmt, err := tx.PrepareNamed(varQuery)
+	if err != nil {
+		tx.Rollback()
+		logger.ErrorWithStack(err)
+		return
+	}
+	defer varsStmt.Close()
 
 	_, err = stmt.Exec(prod)
 	if err != nil {
+		tx.Rollback()
+		logger.ErrorWithStack(err)
+	}
+	_, err = varsStmt.Exec(prod)
+	if err != nil {
+		tx.Rollback()
 		logger.ErrorWithStack(err)
 	}
 
