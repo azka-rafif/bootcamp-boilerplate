@@ -7,8 +7,10 @@ import (
 	"github.com/evermos/boilerplate-go/internal/domain/products"
 	"github.com/evermos/boilerplate-go/shared"
 	"github.com/evermos/boilerplate-go/shared/failure"
+	"github.com/evermos/boilerplate-go/shared/pagination"
 	"github.com/evermos/boilerplate-go/transport/http/response"
 	"github.com/go-chi/chi"
+	"github.com/gofrs/uuid"
 )
 
 type ProductHandler struct {
@@ -23,7 +25,9 @@ func ProvideProductHandler(Productervice products.ProductService) ProductHandler
 
 func (h *ProductHandler) Router(r chi.Router) {
 	r.Route("/products", func(r chi.Router) {
+		r.Get("/", h.GetAllProducts)
 		r.Post("/", h.CreateProduct)
+		r.Get("/{id}", h.GetProductByID)
 	})
 }
 
@@ -47,4 +51,49 @@ func (h *ProductHandler) CreateProduct(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WithJSON(w, http.StatusCreated, prod)
+}
+
+func (h *ProductHandler) GetAllProducts(w http.ResponseWriter, r *http.Request) {
+	page, err := pagination.ConvertToInt(pagination.ParseQueryParams(r, "page"))
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	limit, err := pagination.ConvertToInt(pagination.ParseQueryParams(r, "limit"))
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	sort := pagination.GetSortDirection(pagination.ParseQueryParams(r, "sort"))
+	field := pagination.CheckFieldQuery(pagination.ParseQueryParams(r, "field"), "product_id")
+
+	pg := pagination.NewPaginationQuery(page, limit, field, sort)
+
+	prods, err := h.ProductService.GetAllProducts(pg)
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+	response.WithJSON(w, http.StatusOK, prods)
+}
+
+func (h *ProductHandler) GetProductByID(w http.ResponseWriter, r *http.Request) {
+	idString := chi.URLParam(r, "id")
+	id, err := uuid.FromString(idString)
+
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+
+	prod, err := h.ProductService.GetProductByID(id)
+
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+
+	response.WithJSON(w, http.StatusOK, prod)
 }

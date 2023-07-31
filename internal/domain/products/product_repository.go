@@ -1,14 +1,20 @@
 package products
 
 import (
+	"fmt"
+
 	"github.com/evermos/boilerplate-go/infras"
+	"github.com/evermos/boilerplate-go/shared/failure"
 	"github.com/evermos/boilerplate-go/shared/logger"
+	"github.com/gofrs/uuid"
 	"github.com/jmoiron/sqlx"
 )
 
 type ProductRepository interface {
 	CreateWithVariant(payload ProductAndVariant) error
-	GetAll()
+	GetAllProducts(field, sort string, limit, offset int) (prods []Product, err error)
+	GetProdcutByID(prodId string) (prod Product, err error)
+	GetProductWithVariants(proId uuid.UUID) (prod ProductWithVariants, err error)
 }
 
 type ProductRepositoryMariaDB struct {
@@ -61,5 +67,44 @@ func (r *ProductRepositoryMariaDB) txCreateWithVariant(tx *sqlx.Tx, payload Prod
 		logger.ErrorWithStack(err)
 	}
 
+	return
+}
+
+func (r *ProductRepositoryMariaDB) GetAllProducts(field, sort string, limit, offset int) (prods []Product, err error) {
+	query := fmt.Sprintf("SELECT * FROM product ORDER BY %s %s LIMIT %d OFFSET %d", field, sort, limit, offset)
+	err = r.DB.Read.Select(&prods, query)
+
+	if err != nil {
+		err = failure.InternalError(err)
+		logger.ErrorWithStack(err)
+		return
+	}
+	return
+}
+
+func (r *ProductRepositoryMariaDB) GetProdcutByID(prodId string) (prod Product, err error) {
+	err = r.DB.Read.Get(&prod, "SELECT * FROM product WHERE product_id = %d", prodId)
+	if err != nil {
+		err = failure.InternalError(err)
+		logger.ErrorWithStack(err)
+		return
+	}
+	return
+}
+
+func (r *ProductRepositoryMariaDB) GetProductWithVariants(prodId uuid.UUID) (prod ProductWithVariants, err error) {
+	err = r.DB.Read.Get(&prod.Product, "SELECT * FROM product WHERE product_id = ?", prodId.String())
+	if err != nil {
+		err = failure.InternalError(err)
+		logger.ErrorWithStack(err)
+		return
+	}
+	varQuery := fmt.Sprintf("SELECT * FROM variant WHERE product_id = '%s'", prodId.String())
+	err = r.DB.Read.Select(&prod.Variants, varQuery)
+	if err != nil {
+		err = failure.InternalError(err)
+		logger.ErrorWithStack(err)
+		return
+	}
 	return
 }

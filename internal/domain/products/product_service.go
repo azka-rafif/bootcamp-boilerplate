@@ -1,9 +1,15 @@
 package products
 
-import "github.com/evermos/boilerplate-go/configs"
+import (
+	"github.com/evermos/boilerplate-go/configs"
+	"github.com/evermos/boilerplate-go/shared/pagination"
+	"github.com/gofrs/uuid"
+)
 
 type ProductService interface {
 	CreateWithVariant(newMat PayloadProductAndVariant) (ProductAndVariant, error)
+	GetAllProducts(pg pagination.Pagination) (prods []Product, err error)
+	GetProductByID(prodId uuid.UUID) (prod ProductWithVariants, err error)
 }
 
 type ProductServiceImpl struct {
@@ -25,6 +31,24 @@ func (s *ProductServiceImpl) CreateWithVariant(payload PayloadProductAndVariant)
 		return
 	}
 	err = s.ProductRepository.CreateWithVariant(ProductAndVariant)
+	if err != nil {
+		return
+	}
+	return
+}
+
+func (s *ProductServiceImpl) GetAllProducts(pg pagination.Pagination) (prods []Product, err error) {
+	prods, err = s.ProductRepository.GetAllProducts(pg.Field, pg.Sort, pg.Limit, pg.Offset)
+
+	if err != nil {
+		return
+	}
+
+	return
+}
+
+func (s *ProductServiceImpl) GetProductByID(prodId uuid.UUID) (prod ProductWithVariants, err error) {
+	prod, err = s.ProductRepository.GetProductWithVariants(prodId)
 	if err != nil {
 		return
 	}
