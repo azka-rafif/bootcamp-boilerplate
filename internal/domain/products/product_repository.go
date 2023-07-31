@@ -13,7 +13,7 @@ import (
 type ProductRepository interface {
 	CreateWithVariant(payload ProductAndVariant) error
 	GetAllProducts(field, sort string, limit, offset int) (prods []Product, err error)
-	GetProdcutByID(prodId string) (prod Product, err error)
+	GetProductByID(prodId uuid.UUID) (prod Product, err error)
 	GetProductWithVariants(proId uuid.UUID) (prod ProductWithVariants, err error)
 }
 
@@ -28,6 +28,17 @@ func ProvideProductRepositoryMariaDB(db *infras.MariaDBConn) *ProductRepositoryM
 }
 
 func (r *ProductRepositoryMariaDB) CreateWithVariant(payload ProductAndVariant) error {
+	exists, err := r.ExistsByID(payload.Product.ProductID)
+	if err != nil {
+		logger.ErrorWithStack(err)
+		return err
+	}
+
+	if exists {
+		err = failure.Conflict("create", "product", "already exists")
+		logger.ErrorWithStack(err)
+		return err
+	}
 	return r.DB.WithTransaction(func(db *sqlx.Tx, c chan error) {
 		if err := r.txCreateWithVariant(db, payload); err != nil {
 			c <- err
@@ -82,7 +93,7 @@ func (r *ProductRepositoryMariaDB) GetAllProducts(field, sort string, limit, off
 	return
 }
 
-func (r *ProductRepositoryMariaDB) GetProdcutByID(prodId string) (prod Product, err error) {
+func (r *ProductRepositoryMariaDB) GetProductByID(prodId uuid.UUID) (prod Product, err error) {
 	err = r.DB.Read.Get(&prod, "SELECT * FROM product WHERE product_id = %d", prodId)
 	if err != nil {
 		err = failure.InternalError(err)
@@ -106,5 +117,20 @@ func (r *ProductRepositoryMariaDB) GetProductWithVariants(prodId uuid.UUID) (pro
 		logger.ErrorWithStack(err)
 		return
 	}
+	return
+}
+
+func (r *ProductRepositoryMariaDB) ExistsByID(prodId uuid.UUID) (exists bool, err error) {
+
+	err = r.DB.Read.Get(&exists, "SELECT COUNT(product_id) FROM product WHERE Product_id = ?", prodId.String())
+
+	if err != nil {
+		logger.ErrorWithStack(err)
+	}
+
+	return
+}
+
+func (r *ProductRepositoryMariaDB) Update(prod Product) (err error) {
 	return
 }
