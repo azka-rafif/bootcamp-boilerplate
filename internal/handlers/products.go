@@ -27,11 +27,11 @@ func (h *ProductHandler) Router(r chi.Router) {
 	r.Route("/products", func(r chi.Router) {
 		r.Get("/", h.GetAllProducts)
 		r.Post("/", h.CreateProduct)
+		r.Post("/add-variant/{id}", h.AddVariants)
 		r.Get("/{id}", h.GetProductByID)
 		r.Put("/{id}", h.UpdateProduct)
 		r.Delete("/soft/{id}", h.SoftDelete)
 		r.Delete("/hard/{id}", h.HardDelete)
-
 	})
 }
 
@@ -186,4 +186,8 @@ func (h *ProductHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	response.WithJSON(w, http.StatusNoContent, nil)
+}
+
+func (h *ProductHandler) AddVariants(w http.ResponseWriter, r *http.Request) {
+
 }

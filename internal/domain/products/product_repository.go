@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/evermos/boilerplate-go/infras"
+	"github.com/evermos/boilerplate-go/internal/domain/variants"
 	"github.com/evermos/boilerplate-go/shared/failure"
 	"github.com/evermos/boilerplate-go/shared/logger"
 	"github.com/gofrs/uuid"
@@ -17,6 +18,7 @@ type ProductRepository interface {
 	GetProductWithVariants(proId uuid.UUID) (prod ProductWithVariants, err error)
 	Update(prod Product) (err error)
 	HardDelete(prodId uuid.UUID) (err error)
+	AddVariant(variant variants.Variant) (err error)
 }
 
 type ProductRepositoryMariaDB struct {
@@ -46,6 +48,14 @@ func (r *ProductRepositoryMariaDB) CreateWithVariant(payload ProductAndVariant) 
 			c <- err
 			return
 		}
+		if err := r.txCreateVariant(db, payload); err != nil {
+			c <- err
+			return
+		}
+		if err := r.txCreateImages(db, payload); err != nil {
+			c <- err
+			return
+		}
 		c <- nil
 	})
 }
@@ -56,30 +66,64 @@ func (r *ProductRepositoryMariaDB) txCreateWithVariant(tx *sqlx.Tx, payload Prod
 		INSERT INTO product (product_id, product_name, brand_id, updated_at, created_by, created_at, updated_by,user_id)
 		VALUES (:product_id, :product_name, :brand_id, :updated_at, :created_by,:created_at,:updated_by,:user_id);
 	`
-	varQuery := `INSERT INTO variant (variant_id,product_id,variant_name,price,quantity,updated_at, created_by, created_at, updated_by)
-	 VALUES (:variant_id,:product_id,:variant_name,:price,:quantity,:updated_at, :created_by, :created_at, :updated_by)
-	 `
+
 	stmt, err := tx.PrepareNamed(query)
 	if err != nil {
+		tx.Rollback()
 		logger.ErrorWithStack(err)
 		return
-	}
-	varStmt, err := tx.PrepareNamed(varQuery)
-	if err != nil {
-		logger.ErrorWithStack(err)
-		return
-	}
-	defer stmt.Close()
-	defer varStmt.Close()
-	_, err = stmt.Exec(payload.Product)
-	if err != nil {
-		logger.ErrorWithStack(err)
-	}
-	_, err = varStmt.Exec(payload.Variant)
-	if err != nil {
-		logger.ErrorWithStack(err)
 	}
 
+	defer stmt.Close()
+
+	_, err = stmt.Exec(payload.Product)
+	if err != nil {
+		tx.Rollback()
+		logger.ErrorWithStack(err)
+		return
+	}
+
+	return
+}
+
+func (r *ProductRepositoryMariaDB) txCreateVariant(tx *sqlx.Tx, payload ProductAndVariant) (err error) {
+	varQuery := `INSERT INTO variant (variant_id,product_id,variant_name,price,quantity,updated_at, created_by, created_at, updated_by)
+	 VALUES (:variant_id,:product_id,:variant_name,:price,:quantity,:updated_at, :created_by, :created_at, :updated_by)
+	`
+	varStmt, err := tx.PrepareNamed(varQuery)
+	if err != nil {
+		tx.Rollback()
+		logger.ErrorWithStack(err)
+		return
+	}
+	defer varStmt.Close()
+	_, err = varStmt.Exec(payload.Variant)
+	if err != nil {
+		tx.Rollback()
+		logger.ErrorWithStack(err)
+	}
+	return
+}
+
+func (r *ProductRepositoryMariaDB) txCreateImages(tx *sqlx.Tx, payload ProductAndVariant) (err error) {
+	imgQuery := `INSERT INTO image (image_id,variant_id,image_url,updated_at, created_by, created_at, updated_by)
+	VALUES (:image_id,:variant_id,:image_url,:updated_at, :created_by, :created_at, :updated_by)`
+	imgStmt, err := tx.PrepareNamed(imgQuery)
+	if err != nil {
+		tx.Rollback()
+		logger.ErrorWithStack(err)
+		return
+	}
+	defer imgStmt.Close()
+
+	for _, imgs := range payload.Variant.Images {
+		_, err = imgStmt.Exec(imgs)
+		if err != nil {
+			tx.Rollback()
+			logger.ErrorWithStack(err)
+			return
+		}
+	}
 	return
 }
 
@@ -118,6 +162,15 @@ func (r *ProductRepositoryMariaDB) GetProductWithVariants(prodId uuid.UUID) (pro
 		err = failure.InternalError(err)
 		logger.ErrorWithStack(err)
 		return
+	}
+
+	for i := 0; i < len(prod.Variants); i++ {
+		err = r.DB.Read.Select(&prod.Variants[i].Images, "SELECT * FROM image WHERE variant_id = ?", prod.Variants[i].VariantID)
+		if err != nil {
+			err = failure.InternalError(err)
+			logger.ErrorWithStack(err)
+			return
+		}
 	}
 	return
 }
@@ -213,5 +266,13 @@ func (r *ProductRepositoryMariaDB) HardDelete(prodId uuid.UUID) (err error) {
 
 func (r *ProductRepositoryMariaDB) txDelete(tx *sqlx.Tx, prodId uuid.UUID) (err error) {
 	_, err = tx.Exec("DELETE FROM product WHERE product_id = ?", prodId.String())
+	return
+}
+
+func (r *ProductRepositoryMariaDB) AddVariant(variant variants.Variant) (err error) {
+	return
+}
+
+func (r *ProductRepositoryMariaDB) txAddVariant(tx *sqlx.Tx, variant variants.Variant) (err error) {
 	return
 }

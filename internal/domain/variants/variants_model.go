@@ -1,8 +1,11 @@
 package variants
 
 import (
+	"encoding/json"
 	"time"
 
+	"github.com/evermos/boilerplate-go/internal/domain/image"
+	"github.com/evermos/boilerplate-go/shared"
 	"github.com/evermos/boilerplate-go/shared/nuuid"
 	"github.com/gofrs/uuid"
 	"github.com/guregu/null"
@@ -17,25 +20,27 @@ const (
 )
 
 type Variant struct {
-	VariantID   uuid.UUID   `db:"variant_id"`
-	ProductID   uuid.UUID   `db:"product_id"`
-	VariantName string      `db:"variant_name"`
-	Price       float64     `db:"price"`
-	Status      string      `db:"status"`
-	Quantity    int         `db:"quantity"`
-	CreatedAt   time.Time   `db:"created_at"`
-	UpdatedAt   time.Time   `db:"updated_at"`
-	DeletedAt   null.Time   `db:"deleted_at"`
-	CreatedBy   uuid.UUID   `db:"created_by"`
-	UpdatedBy   uuid.UUID   `db:"updated_by"`
-	DeletedBy   nuuid.NUUID `db:"deleted_by"`
+	VariantID   uuid.UUID     `db:"variant_id"`
+	ProductID   uuid.UUID     `db:"product_id"`
+	VariantName string        `db:"variant_name"`
+	Price       float64       `db:"price"`
+	Status      string        `db:"status"`
+	Quantity    int           `db:"quantity"`
+	Images      []image.Image `db:"-"`
+	CreatedAt   time.Time     `db:"created_at"`
+	UpdatedAt   time.Time     `db:"updated_at"`
+	DeletedAt   null.Time     `db:"deleted_at"`
+	CreatedBy   uuid.UUID     `db:"created_by"`
+	UpdatedBy   uuid.UUID     `db:"updated_by"`
+	DeletedBy   nuuid.NUUID   `db:"deleted_by"`
 }
 
 type PayloadVariant struct {
-	VariantName string  `json:"variantName"`
-	Price       float64 `json:"price"`
-	Status      string  `json:"status"`
-	Quantity    int     `json:"quantity"`
+	VariantName  string   `json:"variantName"`
+	Price        float64  `json:"price"`
+	Status       string   `json:"status"`
+	Quantity     int      `json:"quantity"`
+	ImagePayload []string `json:"images"`
 }
 
 type VariantResponseFormat struct {
@@ -45,6 +50,7 @@ type VariantResponseFormat struct {
 	Price       float64     `json:"price"`
 	Status      string      `json:"status"`
 	Quantity    int         `json:"quantity"`
+	Images      []string    `json:"images"`
 	CreatedAt   time.Time   `json:"createdAt"`
 	UpdatedAt   time.Time   `json:"updatedAt"`
 	DeletedAt   null.Time   `json:"deletedAt"`
@@ -68,6 +74,11 @@ func GetVariantStatus(stat VariantStatus) string {
 }
 
 func (v *Variant) ToResponseFormat() VariantResponseFormat {
+
+	var urlsOnly []string
+	for i := range v.Images {
+		urlsOnly = append(urlsOnly, v.Images[i].ImageURL)
+	}
 	resp := VariantResponseFormat{
 		VariantID:   v.VariantID,
 		ProductID:   v.ProductID,
@@ -81,6 +92,35 @@ func (v *Variant) ToResponseFormat() VariantResponseFormat {
 		CreatedBy:   v.CreatedBy,
 		UpdatedBy:   v.UpdatedBy,
 		DeletedBy:   v.DeletedBy,
+		Images:      urlsOnly,
 	}
 	return resp
+}
+
+func (v Variant) NewFromPayload(payload PayloadVariant, proId uuid.UUID) (Variant, error) {
+	varId, _ := uuid.NewV4()
+	newVar := Variant{
+		ProductID:   proId,
+		VariantID:   varId,
+		VariantName: payload.VariantName,
+		Price:       payload.Price,
+		Status:      payload.Status,
+		Quantity:    payload.Quantity,
+		CreatedAt:   time.Now().UTC(),
+		CreatedBy:   proId,
+		UpdatedAt:   time.Now().UTC(),
+		UpdatedBy:   proId,
+	}
+
+	err := newVar.Validate()
+	return newVar, err
+}
+
+func (p *Variant) Validate() error {
+	validator := shared.GetValidator()
+	return validator.Struct(p)
+}
+
+func (v Variant) MarshalJSON() ([]byte, error) {
+	return json.Marshal(v.ToResponseFormat())
 }

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"time"
 
+	"github.com/evermos/boilerplate-go/internal/domain/image"
 	"github.com/evermos/boilerplate-go/internal/domain/variants"
 	"github.com/evermos/boilerplate-go/shared"
 	"github.com/evermos/boilerplate-go/shared/failure"
@@ -67,8 +68,8 @@ type ProductWithVariants struct {
 }
 
 type ProductWithVariantsResponseFormat struct {
-	Product  Product
-	Variants []variants.Variant `json:"variants"`
+	Product  ProductResponseFormat
+	Variants []variants.VariantResponseFormat `json:"variants"`
 }
 
 func (pv ProductAndVariant) NewFromPayload(payload PayloadProductAndVariant) (ProductAndVariant, error) {
@@ -84,6 +85,15 @@ func (pv ProductAndVariant) NewFromPayload(payload PayloadProductAndVariant) (Pr
 		UpdatedBy:   payload.UserID,
 	}
 	varId, _ := uuid.NewV4()
+	var imgs []image.Image
+	var img image.Image
+	for _, val := range payload.VariantPayload.ImagePayload {
+		newImg, err := img.NewFromPayload(val, varId)
+		if err != nil {
+			break
+		}
+		imgs = append(imgs, newImg)
+	}
 	newVar := variants.Variant{
 		VariantID:   varId,
 		ProductID:   proId,
@@ -91,6 +101,7 @@ func (pv ProductAndVariant) NewFromPayload(payload PayloadProductAndVariant) (Pr
 		Price:       payload.VariantPayload.Price,
 		Status:      "ready",
 		Quantity:    payload.VariantPayload.Quantity,
+		Images:      imgs,
 		CreatedAt:   time.Now().UTC(),
 		CreatedBy:   payload.UserID,
 		UpdatedAt:   time.Now().UTC(),
@@ -119,14 +130,14 @@ func (p Product) NewFromPayload(payload PayloadProduct) (Product, error) {
 }
 
 func (pv *ProductWithVariants) ToResponseFormat() ProductWithVariantsResponseFormat {
-
-	for i, varis := range pv.Variants {
-		pv.Variants[i] = variants.Variant(varis.ToResponseFormat())
+	var varis []variants.VariantResponseFormat
+	for _, vari := range pv.Variants {
+		varis = append(varis, vari.ToResponseFormat())
 	}
 
 	resp := ProductWithVariantsResponseFormat{
-		Product:  Product(pv.Product),
-		Variants: pv.Variants,
+		Product:  pv.Product.ToResponseFormat(),
+		Variants: varis,
 	}
 	return resp
 }

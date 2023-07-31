@@ -55,6 +55,7 @@ func (s *ProductServiceImpl) GetProductByID(prodId uuid.UUID) (prod ProductWithV
 	if err != nil {
 		return
 	}
+	println(prod.Variants[0].Images)
 	return
 }
 
