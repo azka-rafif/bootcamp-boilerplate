@@ -89,7 +89,7 @@ CREATE INDEX idx_user_role ON `user` (`role`);
 CREATE INDEX `idx_variant_images` ON `image` (`variant_id`, `image_id`, `image_url`);
 ALTER TABLE `product` ADD FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`);
 ALTER TABLE `product` ADD FOREIGN KEY (`brand_id`) REFERENCES `brand` (`brand_id`);
-ALTER TABLE `variant` ADD FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`);
+ALTER TABLE `variant` ADD FOREIGN KEY (`product_id`) REFERENCES `product` (`product_id`) ON DELETE CASCADE;
 ALTER TABLE `image` ADD FOREIGN KEY (`variant_id`) REFERENCES `variant` (`variant_id`);
 ALTER TABLE variant_location ADD FOREIGN KEY (`warehouse_id`) REFERENCES `warehouse` (`warehouse_id`);
 ALTER TABLE variant_location ADD FOREIGN KEY (`variant_id`) REFERENCES `variant` (`variant_id`);
