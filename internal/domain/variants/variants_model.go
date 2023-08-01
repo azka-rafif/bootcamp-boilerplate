@@ -98,12 +98,22 @@ func (v *Variant) ToResponseFormat() VariantResponseFormat {
 }
 
 func (v Variant) NewFromPayload(payload PayloadVariant, proId uuid.UUID) (Variant, error) {
+	var img image.Image
 	varId, _ := uuid.NewV4()
+	var imgs []image.Image
+	for _, link := range payload.ImagePayload {
+		pay, err := img.NewFromPayload(link, varId)
+		if err != nil {
+			return Variant{}, err
+		}
+		imgs = append(imgs, pay)
+	}
 	newVar := Variant{
 		ProductID:   proId,
 		VariantID:   varId,
 		VariantName: payload.VariantName,
 		Price:       payload.Price,
+		Images:      imgs,
 		Status:      payload.Status,
 		Quantity:    payload.Quantity,
 		CreatedAt:   time.Now().UTC(),
