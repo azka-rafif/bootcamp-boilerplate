@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"time"
 
-	"github.com/evermos/boilerplate-go/internal/domain/image"
 	"github.com/evermos/boilerplate-go/internal/domain/variants"
 	"github.com/evermos/boilerplate-go/shared"
 	"github.com/evermos/boilerplate-go/shared/failure"
@@ -72,7 +71,7 @@ type ProductWithVariantsResponseFormat struct {
 	Variants []variants.VariantResponseFormat `json:"variants"`
 }
 
-func (pv ProductAndVariant) NewFromPayload(payload PayloadProductAndVariant) (ProductAndVariant, error) {
+func (pv ProductAndVariant) NewFromPayload(payload PayloadProductAndVariant) (res ProductAndVariant, err error) {
 	proId, _ := uuid.NewV4()
 	newPro := Product{
 		ProductID:   proId,
@@ -84,32 +83,13 @@ func (pv ProductAndVariant) NewFromPayload(payload PayloadProductAndVariant) (Pr
 		UpdatedAt:   time.Now().UTC(),
 		UpdatedBy:   payload.UserID,
 	}
-	varId, _ := uuid.NewV4()
-	var imgs []image.Image
-	var img image.Image
-	for _, val := range payload.VariantPayload.ImagePayload {
-		newImg, err := img.NewFromPayload(val, varId)
-		if err != nil {
-			break
-		}
-		imgs = append(imgs, newImg)
+	newVar, err := res.Variant.NewFromPayload(payload.VariantPayload, proId)
+	if err != nil {
+		return
 	}
-	newVar := variants.Variant{
-		VariantID:   varId,
-		ProductID:   proId,
-		VariantName: payload.VariantPayload.VariantName,
-		Price:       payload.VariantPayload.Price,
-		Status:      "ready",
-		Quantity:    payload.VariantPayload.Quantity,
-		Images:      imgs,
-		CreatedAt:   time.Now().UTC(),
-		CreatedBy:   payload.UserID,
-		UpdatedAt:   time.Now().UTC(),
-		UpdatedBy:   payload.UserID,
-	}
-	res := ProductAndVariant{Product: newPro, Variant: newVar}
-	err := newPro.Validate()
-	return res, err
+	res = ProductAndVariant{Product: newPro, Variant: newVar}
+	err = newPro.Validate()
+	return
 }
 
 func (p Product) NewFromPayload(payload PayloadProduct) (Product, error) {
@@ -144,7 +124,7 @@ func (pv *ProductWithVariants) ToResponseFormat() ProductWithVariantsResponseFor
 
 func (pv *ProductAndVariant) ToResponseFormat() ProductAndVariantResponseFormat {
 	resp := ProductAndVariantResponseFormat{
-		Product: ProductResponseFormat(pv.Product),
+		Product: pv.Product.ToResponseFormat(),
 		Variant: pv.Variant.ToResponseFormat(),
 	}
 	return resp
@@ -198,4 +178,12 @@ func (p *Product) Update(req PayloadProduct) (err error) {
 	err = p.Validate()
 
 	return
+}
+
+func (pv ProductAndVariant) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pv.ToResponseFormat())
+}
+
+func (pv ProductWithVariants) MarshalJSON() ([]byte, error) {
+	return json.Marshal(pv.ToResponseFormat())
 }
