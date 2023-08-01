@@ -2,6 +2,7 @@ package products
 
 import (
 	"github.com/evermos/boilerplate-go/configs"
+	"github.com/evermos/boilerplate-go/internal/domain/variants"
 	"github.com/evermos/boilerplate-go/shared/pagination"
 	"github.com/gofrs/uuid"
 )
@@ -13,6 +14,7 @@ type ProductService interface {
 	Update(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error)
 	SoftDelete(prodId uuid.UUID, payload PayloadProduct) (prod Product, err error)
 	HardDelete(prodId uuid.UUID, payload PayloadProduct) (err error)
+	AddVariant(prodId uuid.UUID, payload variants.PayloadVariant) (variant variants.Variant, err error)
 }
 
 type ProductServiceImpl struct {
@@ -92,5 +94,14 @@ func (s *ProductServiceImpl) HardDelete(prodId uuid.UUID, payload PayloadProduct
 		return
 	}
 	err = s.ProductRepository.HardDelete(prodId)
+	return
+}
+
+func (s *ProductServiceImpl) AddVariant(prodId uuid.UUID, payload variants.PayloadVariant) (variant variants.Variant, err error) {
+	variant, err = variant.NewFromPayload(payload, prodId)
+	if err != nil {
+		return
+	}
+	err = s.ProductRepository.AddVariant(variant)
 	return
 }
