@@ -284,7 +284,3 @@ func (r *ProductRepositoryMariaDB) AddVariant(variant variants.Variant) (err err
 		c <- nil
 	})
 }
-
-func (r *ProductRepositoryMariaDB) txAddVariant(tx *sqlx.Tx, variant variants.Variant) (err error) {
-	return
-}
