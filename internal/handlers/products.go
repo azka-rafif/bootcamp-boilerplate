@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/evermos/boilerplate-go/internal/domain/products"
+	"github.com/evermos/boilerplate-go/internal/domain/variants"
 	"github.com/evermos/boilerplate-go/shared"
 	"github.com/evermos/boilerplate-go/shared/failure"
 	"github.com/evermos/boilerplate-go/shared/pagination"
@@ -189,5 +190,29 @@ func (h *ProductHandler) HardDelete(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *ProductHandler) AddVariants(w http.ResponseWriter, r *http.Request) {
+	idString := chi.URLParam(r, "id")
+	id, err := uuid.FromString(idString)
 
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var requestFormat variants.PayloadVariant
+	err = decoder.Decode(&requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	err = shared.GetValidator().Struct(requestFormat)
+	if err != nil {
+		response.WithError(w, failure.BadRequest(err))
+		return
+	}
+	vari, err := h.ProductService.AddVariant(id, requestFormat)
+	if err != nil {
+		response.WithError(w, err)
+		return
+	}
+	response.WithJSON(w, http.StatusCreated, vari)
 }
